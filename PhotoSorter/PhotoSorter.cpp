@@ -1,7 +1,4 @@
-﻿// PhotoSorter.cpp : Defines the entry point for the console application.
-//
-
-#include "stdafx.h"
+﻿#include "stdafx.h"
 
 #include <iostream>
 #include <array>
@@ -12,21 +9,21 @@
 #include <boost/program_options.hpp>
 #include <boost/program_options/parsers.hpp>
 
-using std::string;
+using std::wstring;
 
 boost::gregorian::date convertDate(std::time_t time) {
 	tm tm_date;
 	auto err = localtime_s(&tm_date, &time);
-	if (err != 0) throw std::exception("Time convertion error");
+	if (err != 0) throw std::exception("Time converting error");
 	return boost::gregorian::date_from_tm(tm_date);
 }
 
-boost::filesystem::path constructFilename(boost::filesystem::path targetDir, boost::gregorian::date date, string filename) {
+boost::filesystem::path constructFilename(boost::filesystem::path targetDir, boost::gregorian::date date, wstring filename) {
 	boost::filesystem::path targetFile(targetDir);
-	targetFile += "\\" + std::to_string(date.year());
-	targetFile += "\\" +std::to_string(date.month().as_number());
-	targetFile += "\\" +std::to_string(date.day().as_number());
-	targetFile += "\\" +filename;
+	targetFile += boost::filesystem::path::preferred_separator + std::to_wstring(date.year());
+	targetFile += boost::filesystem::path::preferred_separator + std::to_wstring(date.month().as_number());
+	targetFile += boost::filesystem::path::preferred_separator + std::to_wstring(date.day().as_number());
+	targetFile += boost::filesystem::path::preferred_separator + filename;
 	return targetFile;
 }
 
@@ -44,7 +41,7 @@ bool filesAreEqual(boost::filesystem::path sourceFile, boost::filesystem::path t
 boost::filesystem::path createUniquePath(boost::filesystem::path file) {
 	for(int i=1; i < 256; ++i) {
 		boost::filesystem::path newpath = file.parent_path();
-		newpath += string("\\");
+		newpath += boost::filesystem::path::preferred_separator;
 		newpath += file.stem();
 		newpath += "_";
 		newpath += std::to_string(i);
@@ -54,66 +51,65 @@ boost::filesystem::path createUniquePath(boost::filesystem::path file) {
 		}
 	}
 	boost::filesystem::path newpath = file.parent_path();
-	newpath += string("\\");
+	newpath += boost::filesystem::path::preferred_separator;
 	newpath += file.stem();
-	newpath += "_RESOLVE.";
+	newpath += L"_RESOLVE.";
 	newpath += file.extension();
 	return newpath;
 }
 
 void sortFile(boost::filesystem::path sourceFile, boost::filesystem::path targetFile) {
 	if (!boost::filesystem::exists(targetFile)) {
-		std::cout << "COPY " << sourceFile << "\t->\t" << targetFile << "\t" << std::endl;
+		std::wcout << L"COPY " << sourceFile << L"\t->\t" << targetFile << L"\t\n";
 		boost::filesystem::create_directories(targetFile.parent_path());
 		boost::filesystem::copy_file(sourceFile, targetFile);
 	} else if (!filesAreEqual(sourceFile, targetFile)) {
 		boost::filesystem::path newpath = createUniquePath(targetFile);
-		std::cout << "COPY and RENAME " << sourceFile << "\t->\t" << newpath << "\t" << std::endl;
+		std::wcout << L"COPY and RENAME " << sourceFile << L"\t->\t" << newpath << L"\t\n";
 		boost::filesystem::copy_file(sourceFile, newpath, boost::filesystem::copy_option::overwrite_if_exists);
 	} else {
-		std::cout << "SKIP " << sourceFile << std::endl;
+		std::wcout << L"SKIP " << sourceFile << L"\n";
 	}
 }
 
-
-void sortPhoto(string sourceDir, string targetDir) {
-	std::array<string, 35> extensions = {
-		".bmp",
-		".gif",
-		".jpg",
-		".jpeg",
-		".png",
-		".psd",
-		".pspimage",
-		".thm",
-		".tif",
-		".tiff",
-		".yuv",
-		".ai",
-		".drw",
-		".eps",
-		".ps",
-		".svg",
-		".raw",
-		".ppm",
-		".pgm",
-		".pbm",
-		".pnm",
-		".pfm",
+void sortPhoto(wstring sourceDir, wstring targetDir) {
+	std::array<wstring, 35> extensions = {
+		L".bmp",
+		L".gif",
+		L".jpg",
+		L".jpeg",
+		L".png",
+		L".psd",
+		L".pspimage",
+		L".thm",
+		L".tif",
+		L".tiff",
+		L".yuv",
+		L".ai",
+		L".drw",
+		L".eps",
+		L".ps",
+		L".svg",
+		L".raw",
+		L".ppm",
+		L".pgm",
+		L".pbm",
+		L".pnm",
+		L".pfm",
 		// Video formats
-		".3g2",
-		".3gp",
-		".asf",
-		".asx",
-		".avi",
-		".flv",
-		".mov",
-		".mp4",
-		".mpg",
-		".rm",
-		".swf",
-		".vob",
-		".wmv"
+		L".3g2",
+		L".3gp",
+		L".asf",
+		L".asx",
+		L".avi",
+		L".flv",
+		L".mov",
+		L".mp4",
+		L".mpg",
+		L".rm",
+		L".swf",
+		L".vob",
+		L".wmv"
 	};
 
 	std::for_each(boost::filesystem::recursive_directory_iterator(sourceDir), boost::filesystem::recursive_directory_iterator(), 
@@ -121,22 +117,30 @@ void sortPhoto(string sourceDir, string targetDir) {
 			boost::filesystem::path p = de.path();
 			
 			if (boost::filesystem::is_regular_file(p)) {
-				string filename = p.filename().string();
+				wstring filename = p.filename().wstring();
 
-				string ext = p.extension().string();
+				wstring ext = p.extension().wstring();
 				std::transform(ext.begin(), ext.end(), ext.begin(), std::tolower);
 				auto fit = std::find(extensions.begin(), extensions.end(), ext);
 				if (fit != extensions.end()) {
-					
 					auto date = convertDate(boost::filesystem::last_write_time(p));
 					boost::filesystem::path targetFile = constructFilename(targetDir, date, filename);
-
 					sortFile(p, targetFile);
 				} else {
-					std::cout << "IGNORE " << p << std::endl;
+					std::wcout << L"IGNORE " << p << std::endl;
 				}
 			}
 		});
+}
+
+std::wstring str_to_wstr(const std::string& str) {
+	std::wstring out;
+	std::string::const_iterator i(str.begin()), end(str.end());
+
+	for(; i != end; ++i) {
+		out += std::use_facet<std::ctype<wchar_t>>(std::locale()).widen(*i);
+	}
+	return out;
 }
 
 
@@ -146,11 +150,10 @@ int _tmain(int argc, _TCHAR* argv[])
 	po::options_description desc("Allowed options");
     desc.add_options()
             ("help", "Print help message")
-            ("source", po::value<string>(), "Source directory")
-			("target", po::value<string>(), "Target directory")
+            ("source", po::value<std::string>(), "Source directory")
+			("target", po::value<std::string>(), "Target directory")
         ;
-
-
+	
 	po::variables_map vm;
 	po::store(po::parse_command_line(argc, argv, desc), vm);
 	po::notify(vm); 
@@ -160,17 +163,17 @@ int _tmain(int argc, _TCHAR* argv[])
 		return false;
     }
 
-	string sourceDir;
+	wstring sourceDir;
 	if (vm.count("source")) {
-		sourceDir = vm["source"].as<string>();
+		sourceDir = str_to_wstr(vm["source"].as<std::string>());
 	} else {
 		std::cout << "Error: source parameter is not defined" << std::endl;
 		desc.print(std::cout);
 		return -1;
 	}
-	string targetDir;
+	wstring targetDir;
 	if (vm.count("target")) {
-		targetDir = vm["target"].as<string>();
+		targetDir = str_to_wstr(vm["target"].as<std::string>());
 	} else {
 		std::cout << "Error: target parameter is not defined"<< std::endl;
 		desc.print(std::cout);
